@@ -1,12 +1,16 @@
 <?php
 // setup.php - Script d'installation avec Composer
-require_once 'vendor/autoload.php';
-
 echo "🚀 Installation de la Plateforme de Projets Étudiants\n";
 echo "====================================================\n\n";
 
 try {
-    // 1. Vérifier les prérequis
+    // 1. Vérifier si on est en mode CLI ou web
+    $isCLI = php_sapi_name() === 'cli';
+    if (!$isCLI) {
+        echo "<pre>";
+    }
+    
+    // 2. Vérifier les prérequis
     echo "1. Vérification des prérequis...\n";
     
     if (version_compare(PHP_VERSION, '7.4.0') < 0) {
@@ -24,7 +28,16 @@ try {
     }
     echo "✅ SQLite3 disponible\n";
     
-    // 2. Créer le fichier .env s'il n'existe pas
+    // 3. Vérifier que Composer a été exécuté
+    if (!file_exists('vendor/autoload.php')) {
+        throw new Exception("❌ Veuillez d'abord exécuter 'composer install'");
+    }
+    echo "✅ Vendor Composer disponible\n";
+    
+    // 4. Charger l'autoloader
+    require_once 'vendor/autoload.php';
+    
+    // 5. Créer le fichier .env s'il n'existe pas
     echo "\n2. Configuration de l'environnement...\n";
     if (!file_exists('.env')) {
         if (file_exists('.env.example')) {
@@ -37,23 +50,13 @@ try {
         echo "ℹ️ Fichier .env existe déjà\n";
     }
     
-    // 3. Charger les variables d'environnement
-    $dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-    $dotenv->load();
-    
-    // 4. Créer les dossiers nécessaires
+    // 6. Créer les dossiers nécessaires
     echo "\n3. Création des dossiers...\n";
     $folders = [
         'database',
         'uploads',
         'uploads/documents',
-        'logs',
-        'src',
-        'src/Controllers',
-        'src/Models',
-        'src/Services',
-        'src/Utils',
-        'tests'
+        'logs'
     ];
     
     foreach ($folders as $folder) {
@@ -68,11 +71,15 @@ try {
         }
     }
     
-    // 5. Initialiser la base de données
+    // 7. Initialiser la base de données
     echo "\n4. Initialisation de la base de données...\n";
-    require_once 'init_db.php';
+    if (file_exists('init_db.php')) {
+        include 'init_db.php';
+    } else {
+        echo "⚠️ Fichier init_db.php non trouvé\n";
+    }
     
-    // 6. Créer le fichier .gitignore
+    // 8. Créer le fichier .gitignore
     echo "\n5. Configuration Git...\n";
     $gitignoreContent = <<<GITIGNORE
 # Dépendances
@@ -82,7 +89,6 @@ try {
 # Environnement
 .env
 .env.local
-.env.*.local
 
 # Base de données
 /database/*.db
@@ -109,8 +115,6 @@ try {
 .DS_Store
 Thumbs.db
 
-# Composer
-composer.lock
 GITIGNORE;
     
     if (!file_exists('.gitignore')) {
@@ -118,20 +122,20 @@ GITIGNORE;
         echo "✅ Fichier .gitignore créé\n";
     }
     
-    // 7. Créer des fichiers .gitkeep
+    // 9. Créer des fichiers .gitkeep
     $gitkeepFiles = [
         'uploads/.gitkeep',
-        'logs/.gitkeep',
-        'tests/.gitkeep'
+        'logs/.gitkeep'
     ];
     
     foreach ($gitkeepFiles as $file) {
         if (!file_exists($file)) {
             touch($file);
+            echo "✅ Fichier $file créé\n";
         }
     }
     
-    // 8. Configuration finale
+    // 10. Configuration finale
     echo "\n6. Configuration finale...\n";
     
     // Créer un fichier de configuration pour Apache si nécessaire
@@ -161,25 +165,11 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header always set X-Content-Type-Options nosniff
     Header always set X-Frame-Options DENY
     Header always set X-XSS-Protection "1; mode=block"
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' https://cdn.jsdelivr.net;"
 </IfModule>
 
 # Compression
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json
-</IfModule>
-
-# Cache
-<IfModule mod_expires.c>
-    ExpiresActive On
-    ExpiresByType text/css "access plus 1 month"
-    ExpiresByType application/javascript "access plus 1 month"
-    ExpiresByType image/png "access plus 1 month"
-    ExpiresByType image/jpg "access plus 1 month"
-    ExpiresByType image/jpeg "access plus 1 month"
-    ExpiresByType image/gif "access plus 1 month"
-    ExpiresByType image/svg+xml "access plus 1 month"
 </IfModule>
 HTACCESS;
     
@@ -192,8 +182,8 @@ HTACCESS;
     echo "=====================================\n\n";
     
     echo "🔗 URLs d'accès :\n";
-    echo "   - Application : " . ($_ENV['APP_URL'] ?? 'http://localhost:8000') . "\n";
-    echo "   - Connexion   : " . ($_ENV['APP_URL'] ?? 'http://localhost:8000') . "/auth/login.php\n\n";
+    echo "   - Application : http://localhost:8000\n";
+    echo "   - Connexion   : http://localhost:8000/auth/login.php\n\n";
     
     echo "👤 Comptes de test :\n";
     echo "   - Admin      : admin / admin123\n";
@@ -205,7 +195,14 @@ HTACCESS;
     echo "   ou\n";
     echo "   php -S localhost:8000\n\n";
     
+    if (!$isCLI) {
+        echo "</pre>";
+    }
+    
 } catch (Exception $e) {
     echo "\n❌ Erreur d'installation : " . $e->getMessage() . "\n";
+    if (!$isCLI) {
+        echo "</pre>";
+    }
     exit(1);
 }
