@@ -54,12 +54,12 @@ class Database {
     
     public function query($sql, $params = []) {
         try {
-            $stmt = $this->pdo->prepare($sql);
+            $stmt = $this->pdo->prepare($sql); // C'est ici (ligne 57 dans votre trace d'erreur) que l'erreur SQL de reports.php se manifeste
             $stmt->execute($params);
             return $stmt;
         } catch (Exception $e) {
             error_log("Erreur SQL : " . $e->getMessage());
-            throw $e;
+            throw $e; // L'exception est relancée
         }
     }
     
@@ -68,7 +68,8 @@ class Database {
     }
     
     public function fetch($sql, $params = []) {
-        return $this->query($sql, $params)->fetch();
+        // C'est cette méthode qui est appelée par reports.php (ligne 71 dans votre trace d'erreur)
+        return $this->query($sql, $params)->fetch(); 
     }
     
     public function lastInsertId() {

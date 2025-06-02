@@ -85,16 +85,14 @@ $domainStats = $db->fetchAll("
     LIMIT 10
 ");
 
-// Temps moyen de réalisation des projets terminés
 $avgCompletionQuery = $db->fetch("
     SELECT AVG(julianday(COALESCE(
-        (SELECT MAX(updated_at) FROM tasks WHERE project_id = projects.id AND status = 'completed'),
+        (SELECT MAX(created_at) FROM tasks WHERE project_id = projects.id AND status = 'completed'),
         datetime('now')
     )) - julianday(start_date)) as avg_days
     FROM projects 
     WHERE status = 'completed' AND start_date IS NOT NULL
 ");
-$avgCompletionTime = $avgCompletionQuery['avg_days'] ?? 0;
 
 // Projets récemment créés
 $recentProjects = $db->fetchAll("
